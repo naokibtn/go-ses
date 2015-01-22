@@ -27,6 +27,8 @@ type Config struct {
 	// SecretAccessKey is your Amazon AWS secret key.
 	SecretAccessKey string
 
+	SecurityToken string
+
 	// Endpoint
 	Endpoint string
 }
@@ -66,7 +68,7 @@ func (c *Config) SendEmail(from, to, subject, body string) (string, error) {
 	data.Add("Message.Body.Text.Data", body)
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.SecurityToken, c.Endpoint)
 }
 
 func (c *Config) SendEmailHTML(from, to, subject, bodyText, bodyHTML string) (string, error) {
@@ -79,7 +81,7 @@ func (c *Config) SendEmailHTML(from, to, subject, bodyText, bodyHTML string) (st
 	data.Add("Message.Body.Html.Data", bodyHTML)
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.SecurityToken, c.Endpoint)
 }
 
 func (c *Config) SendRawEmail(raw []byte) (string, error) {
@@ -88,7 +90,7 @@ func (c *Config) SendRawEmail(raw []byte) (string, error) {
 	data.Add("RawMessage.Data", base64.StdEncoding.EncodeToString(raw))
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	return sesPost(data, c.AccessKeyID, c.SecretAccessKey, c.SecurityToken, c.Endpoint)
 }
 
 func (c *Config) GetSendQuota() (GetSendQuotaResult, error) {
@@ -96,7 +98,7 @@ func (c *Config) GetSendQuota() (GetSendQuotaResult, error) {
 	data.Add("Action", "GetSendQuota")
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.SecurityToken, c.Endpoint)
 	if err != nil {
 		return GetSendQuotaResult{}, err
 	}
@@ -111,7 +113,7 @@ func (c *Config) GetSendStatistics() ([]SendDataPoint, error) {
 	data.Add("Action", "GetSendStatistics")
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.SecurityToken, c.Endpoint)
 	if err != nil {
 		return []SendDataPoint{}, err
 	}
@@ -131,7 +133,7 @@ func authorizationHeader(date, accessKeyID, secretAccessKey string) []string {
 	return []string{auth}
 }
 
-func sesGet(data url.Values, accessKeyID, secretAccessKey, endpoint string) (string, error) {
+func sesGet(data url.Values, accessKeyID, secretAccessKey, securityToken, endpoint string) (string, error) {
 	urlstr := fmt.Sprintf("%s?%s", endpoint, data.Encode())
 	endpointURL, _ := url.Parse(urlstr)
 	headers := map[string][]string{}
@@ -146,6 +148,9 @@ func sesGet(data url.Values, accessKeyID, secretAccessKey, endpoint string) (str
 	signature := base64.StdEncoding.EncodeToString(h.Sum(nil))
 	auth := fmt.Sprintf("AWS3-HTTPS AWSAccessKeyId=%s, Algorithm=HmacSHA256, Signature=%s", accessKeyID, signature)
 	headers["X-Amzn-Authorization"] = []string{auth}
+	if securityToken != "" {
+		headers["X-Amz-Security-Token"] = []string{securityToken}
+	}
 
 	req := http.Request{
 		URL:        endpointURL,
@@ -175,7 +180,7 @@ func sesGet(data url.Values, accessKeyID, secretAccessKey, endpoint string) (str
 	return string(resultbody), nil
 }
 
-func sesPost(data url.Values, accessKeyID, secretAccessKey, endpoint string) (string, error) {
+func sesPost(data url.Values, accessKeyID, secretAccessKey, securityToken, endpoint string) (string, error) {
 	body := strings.NewReader(data.Encode())
 	req, err := http.NewRequest("POST", endpoint, body)
 	if err != nil {
