@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"encoding/xml"
 	"time"
 )
 
@@ -33,8 +33,8 @@ type Config struct {
 
 type GetSendQuotaResult struct {
 	SentLast24Hours float64
-        Max24HourSend float64
-        MaxSendRate float64
+	Max24HourSend   float64
+	MaxSendRate     float64
 }
 
 type GetSendQuotaResponse struct {
@@ -42,11 +42,11 @@ type GetSendQuotaResponse struct {
 }
 
 type SendDataPoint struct {
-	Complaints int
+	Complaints       int
 	DeliveryAttempts int
-	Bounces int
-	Rejects int
-	Timestamp time.Time
+	Bounces          int
+	Rejects          int
+	Timestamp        time.Time
 }
 
 type GetSendStatisticsResult struct {
@@ -54,7 +54,7 @@ type GetSendStatisticsResult struct {
 }
 
 type GetSendStatisticsResponse struct {
-        GetSendStatisticsResult GetSendStatisticsResult
+	GetSendStatisticsResult GetSendStatisticsResult
 }
 
 func (c *Config) SendEmail(from, to, subject, body string) (string, error) {
@@ -96,7 +96,6 @@ func (c *Config) GetSendQuota() (GetSendQuotaResult, error) {
 	data.Add("Action", "GetSendQuota")
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
 
-
 	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
 	if err != nil {
 		return GetSendQuotaResult{}, err
@@ -111,7 +110,6 @@ func (c *Config) GetSendStatistics() ([]SendDataPoint, error) {
 	data := make(url.Values)
 	data.Add("Action", "GetSendStatistics")
 	data.Add("AWSAccessKeyId", c.AccessKeyID)
-
 
 	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
 	if err != nil {
