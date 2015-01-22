@@ -14,7 +14,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-//	"os"
 	"strings"
 	"encoding/xml"
 	"time"
@@ -28,6 +27,7 @@ type Config struct {
 	// SecretAccessKey is your Amazon AWS secret key.
 	SecretAccessKey string
 
+	// Endpoint
 	Endpoint string
 }
 
@@ -38,7 +38,23 @@ type GetSendQuotaResult struct {
 }
 
 type GetSendQuotaResponse struct {
-    GetSendQuotaResult GetSendQuotaResult
+	GetSendQuotaResult GetSendQuotaResult
+}
+
+type SendDataPoint struct {
+	Complaints int
+	DeliveryAttempts int
+	Bounces int
+	Rejects int
+	Timestamp time.Time
+}
+
+type GetSendStatisticsResult struct {
+	SendDataPoints []SendDataPoint `xml:"SendDataPoints>member"`
+}
+
+type GetSendStatisticsResponse struct {
+        GetSendStatisticsResult GetSendStatisticsResult
 }
 
 func (c *Config) SendEmail(from, to, subject, body string) (string, error) {
@@ -89,6 +105,24 @@ func (c *Config) GetSendQuota() (GetSendQuotaResult, error) {
 	res := GetSendQuotaResponse{}
 	err = xml.Unmarshal([]byte(body), &res)
 	return res.GetSendQuotaResult, err
+}
+
+func (c *Config) GetSendStatistics() ([]SendDataPoint, error) {
+	data := make(url.Values)
+	data.Add("Action", "GetSendStatistics")
+	data.Add("AWSAccessKeyId", c.AccessKeyID)
+
+
+	body, err := sesGet(data, c.AccessKeyID, c.SecretAccessKey, c.Endpoint)
+	if err != nil {
+		return []SendDataPoint{}, err
+	}
+
+	res := GetSendStatisticsResponse{}
+
+	err = xml.Unmarshal([]byte(body), &res)
+
+	return res.GetSendStatisticsResult.SendDataPoints, err
 }
 
 func authorizationHeader(date, accessKeyID, secretAccessKey string) []string {
